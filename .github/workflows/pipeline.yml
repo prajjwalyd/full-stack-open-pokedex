@@ -1,4 +1,4 @@
-name: Deployment pipeline
+name: Deployment Pipeline
 
 on:
   push:
@@ -8,25 +8,53 @@ on:
 jobs:
   simple_deployment_pipeline:
     runs-on: ubuntu-20.04
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
           node-version: '16'
-      - name: Install dependencies 
-        run: npm install  
-        
-      - name: Check style
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Check Style
         run: npm run eslint
-        
-      - name: Check build
+
+      - name: Check Build
         run: npm run build
-      - name: Check test
+
+      - name: Check Tests
         run: npm run test
-        
-      - name: e2e tests
+
+      - name: Run E2E Tests
         uses: cypress-io/github-action@v5
         with:
           command: npm run test:e2e
           start: npm run start-prod
           wait-on: http://localhost:5000
+
+  deploy:
+    if: ${{ github.event_name == 'push' && !contains(toJson(github.event.commits.*.message),'#skip')}}
+    runs-on: ubuntu-latest
+
+    permissions:
+      deployments: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Deploy to Render
+        uses: JorgeLNJunior/render-deploy@v1.4.1
+        with:
+          service_id: ${{ secrets.RENDER_SERVICE_ID }} # required
+          api_key: ${{ secrets.RENDER_API_KEY }} # required
+          clear_cache: false # Clear build cache. Optional
+          wait_deploy: false # Wait until the deploy status is successful. Warning! Free Render services can take +5 minutes to be fully deployed. Optional
+          github_deployment: false # Create a GitHub deployment. Optional
+          deployment_environment: 'production' # GitHub deployment environment name. Optional
+          github_token: false # Remove if github_deployment is false. Optional
