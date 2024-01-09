@@ -5,6 +5,10 @@ on:
     branches:
       - master
 
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize]
+
 jobs:
   simple_deployment_pipeline:
     runs-on: ubuntu-20.04
@@ -38,7 +42,7 @@ jobs:
           wait-on: http://localhost:5000
 
   deploy:
-    if: ${{ github.event_name == 'push' && !contains(toJson(github.event.commits.*.message),'#skip')}}
+    if: ${{ github.event_name == 'push' && !contains(toJson(github.event.commits.*.message), '#skip') && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
 
     permissions:
@@ -48,10 +52,20 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      - name: Debug Info
+        run: |
+          echo "GitHub Event Name: ${{ github.event_name }}"
+          echo "GitHub Ref: ${{ github.ref }}"
+          echo "Commits: ${{ toJson(github.event.commits) }}"
+          echo "Commit Messages: ${{ toJson(github.event.commits.*.message) }}"
+          echo "Skip Check: ${{ contains(toJson(github.event.commits.*.message), '#skip') }}"
+          echo "Running on Branch: ${{ github.ref == 'refs/heads/master' }}"
+          
       - name: Deploy to Render
-        # Only run this step if the branch is main
-        if: github.ref == 'refs/heads/main'
+        # Only run this step if the branch is master
+        if: github.ref == 'refs/heads/master'
         env:
           deploy_url: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
+          echo "Deploying to $deploy_url"
           curl "$deploy_url"
